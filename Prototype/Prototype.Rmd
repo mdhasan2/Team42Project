@@ -1,0 +1,133 @@
+---
+title: "Untitled"
+author: "MD Hasan, mdhasan2@illinois.edu"
+date: "3/21/2018"
+output: html_document
+---
+
+```{r}
+#install.packages("readr")
+library(readr)
+mm="04"
+station = "722180"
+aprilfool <- NULL
+#Start from 1929 instead of 1901
+for(year in 1929:2018){
+  print(year)
+  x <- read_fwf(paste('/Users/mdhasan/Dropbox/3. MCS/6. CS 498 CCA/Project_CCA/mdhasan2/2. DataProcessing/', year,sep = ""),  fwf_widths(c(6,6,11,11,11,11,11,11,10,7,7,7,8,8,7,6)))
+  for(dd in 1:7){
+  date = paste(year,mm,"0",dd,sep="")
+  aprilfool <- rbind(aprilfool, x[(which((x$X3 == date) & (x$X1 == station))),])
+  }
+}
+```
+
+```{r}
+#str(aprilfool)
+#save the data for future use
+write.table(aprilfool,file = "af")
+af <- read.table("af")
+#Remove Missing = '99.99' values and Not reported values
+new_af <- af[which((af$X14 != '99.99')&(af$X14 !='0.00I')),]
+#str(new_af)
+```
+
+```{r}
+#strip the flag: e.g. "0.00A" to "0.00"
+# Try Linear Regrssion
+master <- new_af
+master$X14 <- substr(master$X14,1,4)
+
+#date to dd
+master$X3 <- substr(master$X3,7,8)
+
+master$X3 <- factor(master$X3)
+
+#is.factor(master$X3)
+#levels(master$X3)
+
+plot(master$X3, master$X14)
+
+library(stringr)
+master$X3 <- as.numeric(master$X3)
+master$X4 <- as.numeric(str_replace_all(master$X4, fixed(" "),""))
+master$X5 <- as.numeric(str_replace_all(master$X5, fixed(" "),""))
+master$X6 <- as.numeric(str_replace_all(master$X6, fixed(" "),""))
+master$X7 <- as.numeric(str_replace_all(master$X7, fixed(" "),""))
+master <- master[which((master$X7 != 9999.900)),]
+master$X8 <- as.numeric(str_replace_all(master$X8, fixed(" "),""))
+master$X9 <- as.numeric(str_replace_all(master$X9, fixed(" "),""))
+
+set.seed(7)
+#Split train/test(80/20) data: 
+n <- nrow(master)
+
+sample <- sample(seq(n), size = n * 0.80, replace = FALSE)
+
+train <- master[sample,]
+test  <- master[-sample,]
+
+
+fit <- lm(X14 ~ X3+X4+X5+X6+X7+X8+X9, data = train)
+
+summary(fit)
+
+newX <- as.matrix(test[,3:9])
+newY <- as.numeric(test$X14)
+newX
+
+predictions <- as.numeric(predict(fit, test[,3:9], type = "response"))
+
+v1 <- sqrt(sum((predictions - newY)^2) / nrow(test))
+
+new <- matrix(
+  c(1,47   , 44,  1006.43, 1006.43, 7,7,
+    2,51.99, 50,  1006.43, 1006.43, 4,4,
+    3,60.99, 55,  1006.43, 1006.43, 7,2,
+    4,62.99, 58,  1006.43, 1006.43, 3,7,
+    5,41,    32,  1006.43, 1006.43, 7,5,
+    6,48,    37,  1006.43, 1006.43, 7,3,
+    7,51.99, 48,  1006.43, 1006.43, 7,4
+  ),7,7,byrow = TRUE)
+colnames(new) <- c("X3","X4", "X5", "X6", "X7", "X8", "X9")
+predictions <- as.numeric(predict(fit, as.data.frame(new), type = "response"))
+predictions
+```
+
+
+```{r}
+library(glmnet)
+par(mfrow = c(1, 2))
+set.seed(7)
+#install.packages("glmnet", repos = "http://cran.us.r-project.org")
+```
+
+```{r}
+
+
+#CV error
+cvfit<- cv.glmnet(data.matrix(train[,3:9]), as.numeric(train$X14), alpha = 0)
+plot(cvfit)
+
+cvfit$lambda.min
+#(CV Error,regularized)
+cvfit$cvm[cvfit$lambda==cvfit$lambda.min]
+
+md <- glmnet(data.matrix(train[,3:9]), as.numeric(train$X14), lambda = cvfit1$lambda.min, alpha = 0)
+
+
+
+predictions <- as.numeric(predict(md, newX, type = "response"))
+
+v2 <- sqrt(sum((predictions - newY)^2) / nrow(test))
+
+
+predictions <- as.numeric(predict(md, new, type = "response"))
+predictions
+
+100*(v1-v2)/v1
+
+```
+
+
+
