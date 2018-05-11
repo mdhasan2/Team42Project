@@ -1,0 +1,501 @@
+---
+title: "Untitled"
+author: "MD Hasan, mdhasan2@illinois.edu"
+date: "3/21/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+#install.packages("readr")
+library(readr)
+mm="04"
+station = "722180"
+aprilfool <- NULL
+#Start from 1929 instead of 1901
+for(year in 1929:2018){
+  print(year)
+  x <- read_fwf(paste('/Users/MJH/Desktop/6. CS 498 CCA/Project_CCA/mdhasan2/2. DataProcessing/', year,sep = ""),  fwf_widths(c(6,6,11,11,11,11,11,11,10,7,7,7,8,8,7,6)))
+  for(dd in 1:30){
+  if(dd < 10 ){
+  date = paste(year,mm,"0",dd,sep="")
+  } else {
+  date = paste(year,mm,dd,sep="")
+  }
+  aprilfool <- rbind(aprilfool, x[(which((x$X3 == date) & (x$X1 == station))),])
+  }
+}
+```
+
+```{r}
+#str(aprilfool)
+#save the data for future use
+write.table(aprilfool,file = "af")
+af <- read.table("af")
+#Remove Missing = '99.99' values and Not reported values
+new_af <- af[which((af$X14 != '99.99')&(af$X14 !='0.00I')),]
+#str(new_af)
+```
+
+```{r}
+#install.packages("weathermetrics")
+library(weathermetrics)
+#strip the flag: e.g. "0.00A" to "0.00"
+# Try Linear Regrssion
+master <- new_af
+
+
+master$X14 <- substr(master$X14,1,4)
+
+#date to dd
+master$X3 <- substr(master$X3,7,8)
+
+master$X3 <- factor(master$X3)
+
+#is.factor(master$X3)
+#levels(master$X3)
+
+plot(master$X3, master$X14)
+#install.packages("stringr")
+library(stringr)
+master$X3 <- as.numeric(master$X3)
+
+nrow(master)
+master$X4 <-as.numeric(substr(master$X4,1,4))
+master <- master[which((master$X4 != 99.9)),]
+master$X4 <- convert_temperature(master$X4, old_metric = "fahrenheit", new_metric = "celsius")
+#master$X4<- as.numeric(str_replace_all(master$X4, fixed("99.9"),"NA"))
+
+master$X5<- as.numeric(substr(master$X5,1,4))
+master <- master[which((master$X5 != 99.9)),]
+master$X5 <- convert_temperature(master$X5, old_metric = "fahrenheit", new_metric = "celsius")
+#master$X5<- as.numeric(str_replace_all(master$X5, fixed("99.9"),"NA"))
+
+#str(master$X6)
+
+master$X6<- as.numeric(substr(master$X6,1,6))
+#which((master$X6 == 9999.9))
+master <- master[which((master$X6 != 9999.9)),]
+#master$X6<- as.numeric(str_replace_all(master$X6, fixed("9999.9"),"NA"))
+
+master$X7<- as.numeric(substr(master$X7,1,6))
+master <- master[which((master$X7 != 9999.9)),]
+#master$X7 <- as.numeric(str_replace_all(master$X7, fixed("9999.9"),"NA"))
+
+#master$X7
+#which((master$X7 == 9999.9))
+#master <- master[which((master$X7 != 9999.900)),]
+
+master$X8<- as.numeric(substr(master$X8,1,4))
+master <- master[which((master$X8 != 99.9)),]
+#which((master$X8 == 9999.9))
+#master$X8 <- as.numeric(str_replace_all(master$X8, fixed("999.9"),"NA"))
+
+master$X9<- as.numeric(substr(master$X9,1,4))
+master <- master[which((master$X9 != 99.9)),]
+master$X9 <- convert_wind_speed(master$X9, old_metric = "knots", new_metric = "mps")
+#master$X9 <- as.numeric(str_replace_all(master$X9, fixed("999.9"),"NA"))
+
+master$X10<- as.numeric(substr(master$X10,1,4))
+master <- master[which((master$X10 != 99.9)),]
+#which((master$X9 == 999.9))
+#master$X10 <- as.numeric(str_replace_all(master$X10, fixed("99.9"),"NA"))
+
+master$X11<- as.numeric(substr(master$X11,1,4))
+master <- master[which((master$X11 != 999)),]
+master$X11 <- convert_wind_speed(master$X11, old_metric = "knots", new_metric = "mps")
+#which(master$X9 == "999.")
+#master$X11 <- as.numeric(str_replace_all(master$X11, fixed("999."),"NA"))
+
+#which((master$X11 != "NA"))
+
+#master <- master[which((master != NA)),]
+
+master$X12<- as.numeric(substr(master$X12,1,4))
+master <- master[which((master$X12 != 99.9)),]
+master$X12 <- convert_temperature(master$X12, old_metric = "fahrenheit", new_metric = "celsius")
+master$X13<- as.numeric(substr(master$X13,1,4))
+master <- master[which((master$X13 != 99.9)),]
+master$X13 <- convert_temperature(master$X13, old_metric = "fahrenheit", new_metric = "celsius")
+nrow(master)
+#master$X11
+set.seed(7)
+#Split train/test(80/20) data: 
+n <- nrow(master)
+print(master)
+```
+
+
+
+```{r}
+temperature <- read.table("temperatureKAGS.csv", sep = ",", header = TRUE)
+dewpoint <- read.table("dewpointKAGS.csv", sep = ",", header = TRUE)
+windspeed <- read.table("windSpeedKAGS.csv", sep = ",", header = TRUE)
+windgust <- read.table("windGustKAGS.csv", sep = ",", header = TRUE)
+maxTemperature <- read.table("maxTemperatureKAGS.csv", sep = ",", header = TRUE)
+minTemperature <- read.table("minTemperatureKAGS.csv", sep = ",", header = TRUE)
+quantitativePrecipitation <- read.table("quantitativePrecipitationKAGS.csv", sep = ",", header = TRUE)
+probOfPrecipitation <- read.table("probabilityOfPrecipitationKAGS.csv", sep = ",", header = TRUE)
+
+#print(probOfPrecipitation)
+
+april_temp_forcast <- temperature[substr(temperature$WeatherTime,6,7) == "04", ]
+april_dew_forcast <- dewpoint[substr(dewpoint$WeatherTime,6,7) == "04", ]
+april_wind_forcast <- windspeed[substr(windspeed$WeatherTime,6,7) == "04", ]
+april_gust_forcast <- windgust[substr(windgust$WeatherTime,6,7) == "04", ]
+april_maxT_forcast <- maxTemperature[substr(maxTemperature$WeatherTime,6,7) == "04", ]
+april_minT_forcast <- minTemperature[substr(minTemperature$WeatherTime,6,7) == "04", ]
+
+april_precipitation_forcast <- quantitativePrecipitation[substr(quantitativePrecipitation$WeatherTime,6,7) == "04", ]
+
+
+probOfPrecipitation_forcast <- probOfPrecipitation[substr(probOfPrecipitation$WeatherTime,6,7) == "04", ]
+
+new <- NULL
+
+for(i in 1:30){
+  
+  day_temp <- april_temp_forcast[as.numeric(substr(april_temp_forcast$WeatherTime,9,10)) == i,]
+  
+  #day_temp <- april_temp_forcast[as.numeric(substr(april_temp_forcast$WeatherTime,9,10)) == 1,]
+  
+  day_dew  <- april_dew_forcast[as.numeric(substr(april_dew_forcast$WeatherTime,9,10)) == i,]
+  
+  
+  day_wind  <- april_wind_forcast[as.numeric(substr(april_wind_forcast$WeatherTime,9,10)) == i,]
+  day_gust  <- april_gust_forcast[as.numeric(substr(april_gust_forcast$WeatherTime,9,10)) == i,]
+  
+  
+  
+  day_maxT  <- april_maxT_forcast[as.numeric(substr(april_maxT_forcast$WeatherTime,9,10)) == i,]
+  day_minT  <- april_minT_forcast[as.numeric(substr(april_minT_forcast$WeatherTime,9,10)) == i,]
+  day_precip  <- april_precipitation_forcast[as.numeric(substr(april_precipitation_forcast$WeatherTime,9,10)) == i,]
+  day_precip_prob  <- probOfPrecipitation_forcast[as.numeric(substr(probOfPrecipitation_forcast$WeatherTime,9,10)) == i,]
+  
+  #day_maxT
+  
+  #max(day_maxT[as.numeric(substr(day_maxT$WeatherTime,9,10)) == 1,][-1,-1], na.rm = T)
+  
+  temp <- mean(rowMeans(day_temp[,2:ncol(day_temp)], na.rm = TRUE))
+  dew <- mean(rowMeans(day_dew[,2:ncol(day_dew)], na.rm = TRUE))
+  wind <- mean(rowMeans(day_wind[,2:ncol(day_wind)], na.rm = TRUE))
+  #gust <- mean(rowMeans(day_gust[,2:ncol(april_gust_forcast)], na.rm = TRUE))# Max Wind
+  #gust  <- max(day_gust[as.numeric(substr(day_gust$WeatherTime,9,10)) == 1,][,-1], na.rm = T)
+  gust <- max(day_gust[,-1], na.rm = T)
+  #maxT <- mean(rowMeans(day_maxT[,2:ncol(april_maxT_forcast)], na.rm = TRUE))# Max Temperature
+  maxT <- max(day_maxT[,-1], na.rm = T)
+  minT <- min(day_minT[,-1], na.rm = T)
+  #precip <- mean(rowMeans(day_precip[,2:ncol(day_precip)][,-1], na.rm = TRUE))
+  precip <- max(day_precip[,-1], na.rm = T)
+  #precip_prob <- mean(rowMeans(day_precip_prob[,2:ncol(day_precip_prob)][,-1], na.rm = TRUE))
+  #precip_prob <- 0
+  #if(min(day_precip_prob[,-1], na.rm = T) >= 50) {
+    precip_prob <- max(day_precip_prob[,-1], na.rm = T)
+  #}
+  new <- rbind(new, c(i, temp, dew, wind, gust, maxT, minT, precip, precip_prob))
+  
+}
+
+#colnames(new) <- c("DA","TEMP","DEWP","WDSP","MXSPD","MAX","MIN","PRCP")
+colnames(new) <- c("DA","TEMP","DEWP","WDSP","GUST","MAX","MIN","PRCP", "PROB")
+new
+new[,"PRCP"]<- convert_precip(new[,"PRCP"], old_metric = "mm", new_metric = "inches", round = 8)
+new
+```
+
+```{r}
+observed_april_weather <- master
+colnames(observed_april_weather) <- c("STN", "WBAN", "DA","TEMP","DEWP","SLP","STP","VISIB","WDSP","MXSPD","GUST","MAX","MIN","PRCP","SNDP","FRSHTT")
+```
+
+```{r}
+print(observed_april_weather)
+# everything is mean except the first col
+#colnames(observed_april_weather) <- c("dom","temp", "dewp", "sealevel", "pressure", "visibility", "windspeed", "maxwindspeed", "gust", "max", "mean")
+#sample <- sample(seq(n), size = n * 0.80, replace = FALSE)
+
+#train <- observed_april_weather[sample,]
+#test  <- observed_april_weather[-sample,]
+#str(test)
+```
+
+```{r}
+
+#sample_data <- observed_april_weather[observed_april_weather$DA <= 7,]
+
+#sample_data$DA<- as.factor(sample_data$DA)
+
+#new[,1] <- as.data.frame(new[,1])
+
+#new$DA <- as.factor(new$DA)
+
+#levels(sample_data$DA)
+
+#sample_data <- observed_april_weather[observed_april_weather$DA == 23,] 
+#n <- nrow(sample_data)
+#sample <- sample(seq(n), size = n * 0.80, replace = FALSE)
+#train <- sample_data[sample,]
+#test  <- sample_data[-sample,]
+
+set.seed(7)
+#?na.action()
+#fit <- lm(X14 ~ X4+X5+X6+X7+X8+X9+X10+X11+X12+X13, data = train)
+#summary(fit)
+
+#levels(test$DA)
+#for(i in 1:1){
+#  day_weather <- observed_april_weather[observed_april_weather$DA == 1,]
+#fit1 <- lm(PRCP ~ TEMP+DEWP+WDSP+GUST+MAX+MIN, data = observed_april_weather)
+fit1 <- lm(PRCP ~ factor(DA)+TEMP+DEWP+WDSP+GUST+MAX+MIN, data = observed_april_weather)
+#fit2 <- lm(PRCP ~ DA+TEMP+DEWP+WDSP+MXSPD+MAX+MIN, data = observed_april_weather)
+#fit <- lm(PRCP ~ . , data = observed_april_weather[,4:14])
+summary(fit1)$r.squared
+#summary(fit2)
+#predictions <- predict(fit1, as.data.frame(test[test$DA==4,]), type = "response")
+predictions <- predict(fit1, as.data.frame(new), type = "response")
+#v1 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+#v1
+#}
+x <- c(predictions, rep(NA,5))
+x <- matrix(x, ncol = 7, byrow = TRUE)
+as.table(x)
+predictions[predictions<0] <- 0
+#predictions<- convert_precip(predictions, old_metric = "mm", new_metric = "inches", round = 2)
+x <- round(c(predictions, rep(NA,5)),2)
+x <- matrix(x, ncol = 7, byrow = TRUE)
+colnames(x)=c("1","2","3","4","5","6","7")
+rownames(x)=c("1","8","15","22","29")
+as.table(x)
+y <- round(c(new[,8], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+write.table(x,file = "lm_pred")
+write.table(y,file = "orig")
+v1 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+v1
+y <- round(c(new[,9], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+write.table(y,file = "orig_prob")
+#install.packages("lmtest")
+#library(lmtest)
+#bptest(fit1)
+#Unregularized Cross-validation Error
+#calc_loocv_rmse(fit)
+#install.packages("caret")
+#library(caret)
+
+threshold <- 0.5
+
+index_50 <- new[,9]>=50
+diff <- abs(predictions[index_50]-new[,8][index_50])
+100*sum(diff <= threshold)/length(diff)
+```
+
+
+```{r}
+
+#install.packages("pROC")
+library(pROC)
+#install.packages("glmnet", repos = "http://cran.us.r-project.org")
+library(glmnet)
+par(mfrow = c(1, 2))
+new
+```
+
+```{r}
+set.seed(7)
+obs <- observed_april_weather
+train <- data.frame(obs$DA, obs$TEMP, obs$DEWP, obs$WDSP, obs$GUST, obs$MAX, obs$MIN, obs$PRCP)
+
+#new_train <- data.frame(train$DA, train$TEMP, train$DEWP, train$WDSP, train$GUST, train$MAX, train$MIN, train$PRCP)
+#new_test <- data.frame(test$DA, test$TEMP, test$DEWP, test$WDSP, test$GUST, test$MAX, test$MIN, test$PRCP)
+
+#CV error
+cvfit<- cv.glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), alpha = 0)
+#cvfit<- cv.glmnet(data.matrix(new_train[,2:7]), as.numeric(new_train$train.PRCP), alpha = 0)
+plot(cvfit)
+
+cvfit$lambda.min
+#(CV Error,regularized)
+cvfit$cvm[cvfit$lambda==cvfit$lambda.min]
+
+#md <- glmnet(data.matrix(obs[,3:5]), as.numeric(obs$PRCP), lambda = cvfit$lambda.min, alpha = 0)
+md_ridge <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = cvfit$lambda.min, alpha = 0)
+
+#md_ridge <- glmnet(data.matrix(new_train[,2:7]), as.numeric(new_train$train.PRCP), lambda = cvfit$lambda.min, alpha = 0)
+
+predictions <- as.numeric(predict(md_ridge, as.matrix(new[,2:7]), type = "response"))
+#v2 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+#v2
+#predictions <- as.numeric(predict(md, new, type = "response"))
+#100*(v1-v2)/v1
+x <- c(predictions, rep(NA,5))
+x <- matrix(x, ncol = 7, byrow = TRUE)
+as.table(x)
+predictions[predictions<0] <- 0
+#predictions<- convert_precip(predictions, old_metric = "mm", new_metric = "inches", round = 2)
+x <- round(c(predictions, rep(NA,5)),2)
+x <- matrix(x, ncol = 7, byrow = TRUE)
+colnames(x)=c("1","2","3","4","5","6","7")
+rownames(x)=c("1","8","15","22","29")
+as.table(x)
+y <- round(c(new[,8], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+write.table(x,file = "ridge_pred")
+v1 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+v1
+y <- round(c(new[,9], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+index_50 <- new[,9]>=50
+diff <- abs(predictions[index_50]-new[,8][index_50])
+100*sum(diff <= threshold)/length(diff)
+```
+
+```{r}
+set.seed(7)
+obs <- observed_april_weather
+train <- data.frame(obs$DA, obs$TEMP, obs$DEWP, obs$WDSP, obs$GUST, obs$MAX, obs$MIN, obs$PRCP)
+
+#CV error
+cvfit<- cv.glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), alpha = 1)
+plot(cvfit)
+
+cvfit$lambda.min
+#(CV Error,regularized)
+cvfit$cvm[cvfit$lambda==cvfit$lambda.min]
+
+#md <- glmnet(data.matrix(obs[,3:5]), as.numeric(obs$PRCP), lambda = cvfit$lambda.min, alpha = 0)
+md_lasso <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = cvfit$lambda.min, alpha = 1)
+
+predictions <- as.numeric(predict(md_lasso, new[,2:7], type = "response"))
+
+#predictions <- as.numeric(predict(md, new, type = "response"))
+x <- c(predictions, rep(NA,5))
+x <- matrix(x, ncol = 7, byrow = TRUE)
+as.table(x)
+predictions[predictions<0] <- 0
+#predictions<- convert_precip(predictions, old_metric = "mm", new_metric = "inches", round = 2)
+x <- round(c(predictions, rep(NA,5)),2)
+x <- matrix(x, ncol = 7, byrow = TRUE)
+colnames(x)=c("1","2","3","4","5","6","7")
+rownames(x)=c("1","8","15","22","29")
+as.table(x)
+y <- round(c(new[,8], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+write.table(x,file = "lasso_pred")
+v1 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+v1
+y <- round(c(new[,9], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+index_50 <- new[,9]>=50
+diff <- abs(predictions[index_50]-new[,8][index_50])
+100*sum(diff <= threshold)/length(diff)
+```
+
+Elastic Net:
+
+Method 1: We utilize the aproach discussed at the following website. 
+
+https://www.r-bloggers.com/variable-selection-with-elastic-net/
+
+```{r}
+#install.packages("pROC")
+set.seed(7)
+
+#a1 <- md_lasso$df/(md_lasso$df+md_ridge$df)
+#a2 <- ((md_lasso$df+md_ridge$df)/2)/(md_lasso$df+md_ridge$df)
+#a3 <- md_ridge$df/(md_lasso$df+md_ridge$df)
+
+#a <- c(a1,a2,a3)
+
+#a
+
+a <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+search <- foreach(i = a, .combine = rbind) %dopar% {
+  cv <- cv.glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), alpha = i)
+  data.frame(cvm = cv$cvm[cv$lambda == cv$lambda.min],  lamda.min = cv$lambda.min, alpha = i)
+}
+
+#Unregularized Cross-validation Error
+#calc_loocv_rmse(fit)
+#Cross-validation Error, Regularization coefficient, Alphas
+search
+
+#Number of parameters used:
+md <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = search$lamda.min[1], alpha = a[1])
+md$df
+md <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = search$lamda.min[2], alpha = a[2])
+md$df
+md <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = search$lamda.min[3], alpha = a[3])
+md$df
+
+#AUC for the best model
+cv.enet <- search[search$cvm == min(search$cvm), ]
+md_enet <- glmnet(data.matrix(train[,2:7]), as.numeric(train$obs.PRCP), lambda = cv.enet$lamda.min, alpha = cv.enet$alpha)
+#Number of variables used:
+md_enet$df
+predictions <- as.numeric(predict(md_enet, new[,2:7], s = "lambda.min", type = "response"))
+
+#Area under the curve: 
+#multiclass.roc(new[,8],predictions)$auc
+
+#confusion matrix
+#table("Actual Class: " = new[,8], "Predicted Class " = predictions)
+#Accuracy
+#confusionMatrix(predictions,new[,8])$overall[[1]]
+
+x <- c(predictions, rep(NA,5))
+x <- matrix(x, ncol = 7, byrow = TRUE)
+as.table(x)
+predictions[predictions<0] <- 0
+#predictions<- convert_precip(predictions, old_metric = "mm", new_metric = "inches", round = 2)
+x <- round(c(predictions, rep(NA,5)),2)
+x <- matrix(x, ncol = 7, byrow = TRUE)
+colnames(x)=c("1","2","3","4","5","6","7")
+rownames(x)=c("1","8","15","22","29")
+as.table(x)
+y <- round(c(new[,8], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+write.table(x,file = "elastic_pred")
+v1 <- sqrt(sum((predictions - new[,8])^2) / nrow(new))
+v1
+y <- round(c(new[,9], rep(NA,5)),2)
+y <- matrix(y, ncol = 7, byrow = TRUE)
+#y=as.data.frame(y)
+colnames(y)=c("1","2","3","4","5","6","7")
+rownames(y)=c("1","8","15","22","29")
+as.table(y)
+index_50 <- new[,9]>=50
+diff <- abs(predictions[index_50]-new[,8][index_50])
+100*sum(diff <= threshold)/length(diff)
+```
+
+
